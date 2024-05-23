@@ -117,8 +117,80 @@ class EmployeeDashboard:
 
 
     def show_my_account_content(self):
-        tk.Label(self.main_frame, text="My Account", font=("Helvetica", 16)).pack(pady=10)
-        # Add content for the My Account section here
+        # Clear the main content area
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
+
+        # Add your account-related content here
+        account_label = tk.Label(self.main_frame, text="My Account", font=("Helvetica", 20))
+        account_label.pack(pady=(20, 10))
+
+        # Connect to the database
+        connection = sqlite3.connect('db_ticketingSystem.db')
+        cursor = connection.cursor()
+
+        # Fetch user information
+        cursor.execute("SELECT * FROM users WHERE name=?", (self.name,))
+        user_info = cursor.fetchone()
+
+        connection.close()
+
+        if user_info:
+            # Display user information
+            user_frame = tk.Frame(self.main_frame, bd=1, relief="solid", padx=10, pady=10)
+            user_frame.pack(fill="both", padx=20, pady=10)
+
+            tk.Label(user_frame, text=f"Name: {user_info[1]}", font=("Helvetica", 12)).pack(anchor="w")
+            tk.Label(user_frame, text=f"Email: {user_info[2]}", font=("Helvetica", 12)).pack(anchor="w")
+            tk.Label(user_frame, text=f"Role: {user_info[4]}", font=("Helvetica", 12)).pack(anchor="w")
+
+            # Button to change password
+            change_password_button = tk.Button(self.main_frame, text="Change Password", font=("Helvetica", 12), cursor="hand2", command=self.open_change_password_frame)
+            change_password_button.pack(pady=10)
+        else:
+            # Display message if user not found
+            no_user_label = tk.Label(self.main_frame, text="User not found.", font=("Helvetica", 12))
+            no_user_label.pack(pady=(10, 10))
+
+    def open_change_password_frame(self):
+        # Create a new window for changing password
+        change_password_window = tk.Toplevel(self.root)
+        change_password_window.title("Change Password")
+        change_password_window.geometry("300x150")
+        change_password_window.resizable(False, False)
+
+        # Labels and entry widgets for current and new password
+        tk.Label(change_password_window, text="Current Password:", font=("Helvetica", 12)).pack()
+        current_password_entry = tk.Entry(change_password_window, show="*", font=("Helvetica", 12))
+        current_password_entry.pack()
+
+        tk.Label(change_password_window, text="New Password:", font=("Helvetica", 12)).pack()
+        new_password_entry = tk.Entry(change_password_window, show="*", font=("Helvetica", 12))
+        new_password_entry.pack()
+
+        # Button to confirm password change
+        confirm_button = tk.Button(change_password_window, text="Confirm", font=("Helvetica", 12), cursor="hand2", command=lambda: self.change_password(current_password_entry.get(), new_password_entry.get()))
+        confirm_button.pack(pady=10)
+
+    def change_password(self, current_password, new_password):
+        # Connect to the database
+        connection = sqlite3.connect('db_ticketingSystem.db')
+        cursor = connection.cursor()
+
+        # Fetch user's current password from the database
+        # Check if the entered current password matches the saved password
+        cursor.execute("SELECT COUNT(*) FROM users WHERE name=? AND password=?", (self.name, current_password))
+        match_count = cursor.fetchone()[0]
+
+        if match_count == 0:
+            messagebox.showerror("Error", "Incorrect current password!")
+        else:
+            # Update the password in the database
+            cursor.execute("UPDATE users SET password=? WHERE name=?", (new_password, self.name))
+            connection.commit()
+            messagebox.showinfo("Success", "Password updated successfully!")
+
+        connection.close()
 
     def create_ticket(self):
         title = self.title_entry.get()
@@ -128,7 +200,8 @@ class EmployeeDashboard:
         status = "Pending"
         assignedTo = "None"
         created_by = self.name
-        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        created_at = datetime.now().strftime("%d/%m/%Y %I:%M%p")
+        resolved_at = None
 
         # Check if any field is empty
         if not all([title, category, description, priority]):
@@ -138,8 +211,8 @@ class EmployeeDashboard:
         # Store ticket data in the database
         connection = sqlite3.connect('db_ticketingSystem.db')
         cursor = connection.cursor()
-        cursor.execute("INSERT INTO tickets (title, category, description, priority, status, assignedTo, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (title, category, description, priority, status, assignedTo, created_by, created_at))
+        cursor.execute("INSERT INTO tickets (title, category, description, priority, status, assignedTo, created_by, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (title, category, description, priority, status, assignedTo, created_by, created_at, resolved_at))
         connection.commit()
         connection.close()
 

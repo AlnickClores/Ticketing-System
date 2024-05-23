@@ -8,7 +8,10 @@ from adminDashboard import AdminDashboard
 class Login:
     def __init__(self, root):
         self.root = root
-        self.current_frame = None
+        self.root.title("Login")
+        self.root.geometry("500x250")
+        self.current_frame = tk.Frame(self.root)
+        self.root.resizable(False, False)
 
     def get_username(self):
         return self.get_username

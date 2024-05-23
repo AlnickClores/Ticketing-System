@@ -56,11 +56,11 @@ class AdminDashboard:
         total_tickets, pending_tickets, in_progress_tickets, closed_tickets = self.get_ticket_stats()
         total_users = self.get_user_stats()
 
+        tk.Label(stats_frame, text=f"Total Users: {total_users-1}", font=("Helvetica", 14)).pack(anchor="w")
         tk.Label(stats_frame, text=f"Total Tickets: {total_tickets}", font=("Helvetica", 14)).pack(anchor="w")
         tk.Label(stats_frame, text=f"Tickets Pending: {pending_tickets}", font=("Helvetica", 14)).pack(anchor="w")
         tk.Label(stats_frame, text=f"Tickets In Progress: {in_progress_tickets}", font=("Helvetica", 14)).pack(anchor="w")
-        tk.Label(stats_frame, text=f"Tickets Closed: {closed_tickets}", font=("Helvetica", 14)).pack(anchor="w")
-        tk.Label(stats_frame, text=f"Total Users: {total_users-1}", font=("Helvetica", 14)).pack(anchor="w")
+        tk.Label(stats_frame, text=f"Resolved Tickets: {closed_tickets}", font=("Helvetica", 14)).pack(anchor="w")
 
     def get_ticket_stats(self):
         connection = sqlite3.connect('db_ticketingSystem.db')
@@ -68,7 +68,7 @@ class AdminDashboard:
         cursor.execute("SELECT COUNT(*), "
                        "SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END), "
                        "SUM(CASE WHEN status='Working' THEN 1 ELSE 0 END), "
-                       "SUM(CASE WHEN status='Closed' THEN 1 ELSE 0 END) "
+                       "SUM(CASE WHEN status='Resolved' THEN 1 ELSE 0 END) "
                        "FROM tickets")
         stats = cursor.fetchone()
         connection.close()
@@ -85,7 +85,7 @@ class AdminDashboard:
     def get_recent_tickets(self):
         connection = sqlite3.connect('db_ticketingSystem.db')
         cursor = connection.cursor()
-        cursor.execute("SELECT title FROM tickets ORDER BY created_at DESC LIMIT 5")
+        cursor.execute("SELECT title FROM tickets ORDER BY created_at DESC LIMIT 9")
         recent_tickets = cursor.fetchall()
         connection.close()
         return [ticket[0] for ticket in recent_tickets]
@@ -105,31 +105,22 @@ class AdminDashboard:
         tickets_frame = tk.Frame(self.main_frame)
         tickets_frame.pack(fill="both", expand=True)
 
-        rows, cols = 3, 3
+        rows, cols = 2, 2
         for index, ticket in enumerate(tickets):
             row, col = divmod(index, cols)
             self.create_ticket_card(tickets_frame, ticket).grid(row=row, column=col, padx=10, pady=10)
 
     def create_ticket_card(self, parent, ticket):
         frame = tk.Frame(parent, bd=2, relief="groove", padx=10, pady=10)
-        tk.Label(frame, text=f"Title: {ticket[1]}", font=("Helvetica", 13)).pack(anchor="w")
-        tk.Label(frame, text=f"Category: {ticket[2]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(frame, text=f"Priority: {ticket[4]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(frame, text=f"Status: {ticket[5]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Button(frame, text="Open Ticket", font=("Helvetica", 12), bg="#007fff", fg="white", command=lambda: self.open_ticket_frame(ticket)).pack(pady=10)
+        tk.Label(frame, text=f"Title: {ticket[1]}", font=("Helvetica", 13)).grid(row=0, column=0, sticky="w")
+        tk.Label(frame, text=f"Category: {ticket[2]}", font=("Helvetica", 12)).grid(row=1, column=0, sticky="w")
+        tk.Label(frame, text=f"Priority: {ticket[4]}", font=("Helvetica", 12)).grid(row=2, column=0, sticky="w")
+        tk.Label(frame, text=f"Status: {ticket[5]}", font=("Helvetica", 12)).grid(row=3, column=0, sticky="w")
+        tk.Button(frame, text="Open Ticket", font=("Helvetica", 12), bg="#007fff", fg="white", cursor="hand2", command=lambda: self.open_ticket_frame(ticket)).grid(row=4, column=0, pady=10)
         return frame
 
+    
     def open_ticket_frame(self, ticket):
-        def update_ticket():
-            assigned_to = self.admin_name
-            status = "Working"
-            connection = sqlite3.connect('db_ticketingSystem.db')
-            cursor = connection.cursor()
-            cursor.execute("UPDATE tickets SET assignedTo=?, status=? WHERE ticket_id=?", (assigned_to, status, ticket[0]))
-            connection.commit()
-            connection.close()
-            messagebox.showinfo("Ticket", "Ticket has been assigned to your account!")
-
         def delete_ticket():
             connection = sqlite3.connect('db_ticketingSystem.db')
             cursor = connection.cursor()
@@ -143,22 +134,43 @@ class AdminDashboard:
         ticket_window.geometry("500x400")
         ticket_window.resizable(False, False)
 
-        tk.Label(ticket_window, text=f"Title: {ticket[1]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(ticket_window, text=f"Category: {ticket[2]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(ticket_window, text=f"Description: {ticket[3]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(ticket_window, text=f"Priority: {ticket[4]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(ticket_window, text=f"Status: {ticket[5]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(ticket_window, text=f"Assigned To: {ticket[6]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(ticket_window, text=f"Created By: {ticket[7]}", font=("Helvetica", 12)).pack(anchor="w")
-        tk.Label(ticket_window, text=f"Created At: {ticket[8]}", font=("Helvetica", 12)).pack(anchor="w")
+        # Create labels for column names and corresponding values
+        tk.Label(ticket_window, text="Title:", font=("Helvetica", 12, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[1], font=("Helvetica", 12)).grid(row=0, column=1, sticky="w")
 
-        tk.Button(ticket_window, text="Get Ticket", font=("Helvetica", 12), command=update_ticket).pack(anchor="w", pady=10)
-        tk.Button(ticket_window, text="Delete Ticket", font=("Helvetica", 12), command=delete_ticket).pack(anchor="w", pady=10)
+        tk.Label(ticket_window, text="Category:", font=("Helvetica", 12, "bold")).grid(row=1, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[2], font=("Helvetica", 12)).grid(row=1, column=1, sticky="w")
+
+        tk.Label(ticket_window, text="Description:", font=("Helvetica", 12, "bold")).grid(row=2, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[3], font=("Helvetica", 12)).grid(row=2, column=1, sticky="w")
+
+        tk.Label(ticket_window, text="Priority:", font=("Helvetica", 12, "bold")).grid(row=3, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[4], font=("Helvetica", 12)).grid(row=3, column=1, sticky="w")
+
+        tk.Label(ticket_window, text="Status:", font=("Helvetica", 12, "bold")).grid(row=4, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[5], font=("Helvetica", 12)).grid(row=4, column=1, sticky="w")
+
+        tk.Label(ticket_window, text="Created By:", font=("Helvetica", 12, "bold")).grid(row=5, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[7], font=("Helvetica", 12)).grid(row=5, column=1, sticky="w")
+
+        tk.Label(ticket_window, text="Created At:", font=("Helvetica", 12, "bold")).grid(row=6, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[8], font=("Helvetica", 12)).grid(row=6, column=1, sticky="w")
+
+        tk.Label(ticket_window, text="Assigned To:", font=("Helvetica", 12, "bold")).grid(row=7, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[6], font=("Helvetica", 12)).grid(row=7, column=1, sticky="w")
+
+        tk.Label(ticket_window, text="Resolved At:", font=("Helvetica", 12, "bold")).grid(row=8, column=0, sticky="w")
+        tk.Label(ticket_window, text=ticket[9], font=("Helvetica", 12)).grid(row=8, column=1, sticky="w")
+
+        # Button to delete ticket
+        delete_ticket_button = tk.Button(ticket_window, text="Delete Ticket", font=("Helvetica", 12), cursor="hand2", command=delete_ticket, bg="#d0312d", fg="white")
+        delete_ticket_button.grid(row=9, columnspan=2, pady=10)
+
 
     def get_tickets(self):
         connection = sqlite3.connect('db_ticketingSystem.db')
         cursor = connection.cursor()
-        cursor.execute("SELECT ticket_id, title, category, description, priority, status, assignedTo, created_by, created_at FROM tickets")
+        cursor.execute("SELECT ticket_id, title, category, description, priority, status, assignedTo, created_by, created_at, resolved_at FROM tickets")
         tickets = cursor.fetchall()
         connection.close()
         return tickets

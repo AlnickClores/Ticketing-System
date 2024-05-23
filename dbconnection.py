@@ -21,7 +21,8 @@ def create_tables():
         assignedTo TEXT,
         priority TEXT,
         created_by TEXT,
-        created_at DATETIME)
+        created_at DATETIME,
+        resolved_at DATETIME)
     '''
 
     cursor.execute(users_tbl)
